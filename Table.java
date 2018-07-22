@@ -70,13 +70,7 @@ public class Table<T extends Player> {
         }
     }
 
-    public void printStat() {
-        for(T p : players) {
-            System.out.println("Player: "+p.getName());
-            System.out.println("Money: "+p.getFunds());
-            System.out.println();
-        }
-    }
+    public void printStat() { for(T p : players) { System.out.println(p.stats()); } }
 
     public void kickPlayers() {
         for(int i=0; i<players.size(); i++) {

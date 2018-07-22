@@ -39,7 +39,8 @@ public class Deck {
         Card retValue;
         do {
             retValue = new Card(symbols[(int) (Math.random() * symbols.length)], suits[(int) (Math.random() * suits.length)]);
-        } while(!cards.contains(retValue));
+            System.out.println(retValue);
+        } while(!this.cards.contains(retValue));
         cards.remove(retValue);
         return retValue;
     }
@@ -48,6 +49,19 @@ public class Deck {
         cards = new HashSet<>();
         this.generateDeckCards();
     }
+
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (object == null || getClass() != object.getClass()) return false;
+        if (!super.equals(object)) return false;
+        Deck deck = (Deck) object;
+        return java.util.Objects.equals(cards, deck.cards);
+    }
+
+    public int hashCode() { return Objects.hash(super.hashCode(), cards); }
+
+    @Override
+    public String toString() { return this.cards.toString(); }
 
     // ----------------------------------------
 }

@@ -5,22 +5,17 @@
  */
 
 import java.util.LinkedList;
+import java.util.Set;
+import java.util.HashSet;
 
 public class testFile {
 
     public static void main(String[] args) {
 
-        LinkedList<Integer> list = new LinkedList<>();
-        list.add(1);
-        list.add(2);
-        list.add(3);
-        list.add(4);
-        System.out.println(list+"\n"+list.size()+"\n");
-
-        for(int j=0; j<list.size(); j++) {
-            if(list.get(j).equals(2)) { list.set(j, null); }
-        }
-        System.out.println(list+"\n"+list.size()+"\n");
+        Set<Card> deck = new HashSet<>();
+        deck.add(new Card("10",'H'));
+        System.out.println(deck);
+        System.out.println(deck.contains(new Card("10",'H')));
 
     }
 

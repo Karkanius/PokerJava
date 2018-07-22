@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Arrays;
 import KarkaniusUtils.READ;
 
@@ -22,16 +24,17 @@ public class Game {
     static PokerPlayer first = null;
     static Card[] tableCards = new Card[5];
     static int pot = 0;
-    static List<Integer> betToCover = new ArrayList<>();
+    static Map<String, Integer> betToCover = new HashMap<>();
 
     public static void main(String[] args) {
+        System.out.println(cards);
         System.out.println("==> POKER GAME <==");
-        initTable();
+        initTable();/*
         System.out.println("INITIALIZING POKER GAME");
         for(int i=0; i<5; i++) {
             delay(1000);
             System.out.print(".");
-        }
+        }*/
         System.out.println("\n\n");
         while(table.activePlayers().size()>1) {
             handCards();
@@ -100,10 +103,14 @@ public class Game {
         table.printStat();
     }
 
-    private static void delay(int ms) {
-        try {
-            TimeUnit.MILLISECONDS.sleep(ms);
-        } catch (InterruptedException e) {}
+    private static List<PokerPlayer> getInGamePlayers() {
+        List<PokerPlayer> players = new ArrayList<>(table.activePlayers());
+        List<PokerPlayer> inGame = new ArrayList<>();
+        for(PokerPlayer player : players) {
+            if(player.getStatus().equals("FOLD")) continue;
+            inGame.add(player);
+        }
+        return inGame;
     }
 
     private static Set<PokerPlayer> roundActivePlayers() {
@@ -118,38 +125,41 @@ public class Game {
     }
 
     private static void handCards() {
-        for(PokerPlayer p : table.getPlayers()) { p.giveCard(cards.draw()); }    // First card
-        for(PokerPlayer p : table.getPlayers()) { p.giveCard(cards.draw()); }    // Second card
+        List<PokerPlayer> tempList = new ArrayList<>(table.activePlayers());
+        System.out.println("Handing cards to players.");
+        for(PokerPlayer p : tempList) { p.giveCard(cards.draw()); System.out.println("Card given (1)"); }    // First card
+        for(PokerPlayer p : tempList) { p.giveCard(cards.draw()); System.out.println("Card given (2)"); }    // Second card
+        table.updatePlayers(tempList);
+        System.out.println("Cards handed to players.");
     }
 
     private static void handleBets() {
-        List<PokerPlayer> players = new ArrayList<>(table.activePlayers());
-        for(int i=0; i<betToCover.size(); i++) { betToCover.set(i, 0); }
+        List<PokerPlayer> players = getInGamePlayers();
         int index = players.indexOf(first);
         // Circle trough players
         do {
             PokerPlayer player = players.get(index);
             if(player.getStatus().equals("FOLD")||player.getStatus().equals("ALLIN")) continue;
-            int toCover = betToCover.get(index);
+            int toCover = betToCover.get(player.getName());
             PokerAction action = player.play(toCover);
             String status = action.getName();
             if(status.equals("ALLIN")) {
                 pot += action.getAmount();
                 if(toCover<action.getAmount()) {
-                    int extra = action.getAmount()-betToCover.get(index);
-                    betToCover.set(index, 0);
-                    for(int i=0; i<betToCover.size(); i++) { if(i!=index) { betToCover.set(i, betToCover.get(i)+extra); } }
+                    int extra = action.getAmount()-betToCover.get(player.getName());
+                    betToCover.put(player.getName(), 0);
+                    for(int i=0; i<betToCover.size(); i++) { if(i!=index) { betToCover.put(player.getName(), betToCover.get(player.getName())+extra); } }
                 }
-                else { betToCover.set(index, betToCover.get(index)-action.getAmount()); }
+                else { betToCover.put(player.getName(), betToCover.get(index)-action.getAmount()); }
             }
             else if(status.equals("RAISE")) {
                 pot += action.getAmount();
-                int extra = action.getAmount()-betToCover.get(index);
-                betToCover.set(index, 0);
-                for(int i=0; i<betToCover.size(); i++) { if(i!=index) { betToCover.set(i, betToCover.get(i)+extra); } }
+                int extra = action.getAmount()-betToCover.get(player.getName());
+                betToCover.put(player.getName(), 0);
+                for(int i=0; i<betToCover.size(); i++) { if(i!=index) { betToCover.put(player.getName(), betToCover.get(player.getName())+extra); } }
                 first = player;
             }
-            else if(status.equals("CALL")) { betToCover.set(index, 0); }
+            else if(status.equals("CALL")) { betToCover.put(player.getName(), 0); }
             // In case status is FOLD or CHECK
             // nothing changes
             player.setStatus(status);
@@ -183,14 +193,17 @@ public class Game {
 
     private static void endRound() {
         handleWinnings(determineWinners());
-        betToCover = new ArrayList<>();         // Reset betToCoverList
+        betToCover = new HashMap<>();           // Reset betToCoverList
         table.kickPlayers();                    // Kick players with 0 funds
         resetPlayersStatus();                   // Remove all player status (including FOLD and ALLIN)
+        for(PokerPlayer player : table.activePlayers()) {
+            betToCover.put(player.getName(), 0);
+        }
     }
 
     private static Set<PokerPlayer> determineWinners() {
         Set<PokerPlayer> winners = new HashSet<>();
-        List<PokerPlayer> players = new ArrayList<>(table.activePlayers());
+        List<PokerPlayer> players = getInGamePlayers();
         Set<Card> bestSet = new HashSet<>();
         for(PokerPlayer player : players) {
             List<Card> available = new ArrayList<>();
@@ -203,7 +216,7 @@ public class Game {
                 // If hand isn't better than bestSet
                 if(bestHand(bestSet, hand)>0) continue;
                 // If hand is equivalent to bestSet
-                if(bestHand(bestSet, hand)==0) { winners.add(player); continue; }
+                if(bestHand(bestSet, hand)==0) { if(!winners.contains(player)) { winners.add(player); } continue; }
                 // If hand beats bestSet
                 if(bestHand(bestSet, hand)<0) {
                     bestSet = hand;
@@ -230,6 +243,10 @@ public class Game {
     }
 
     private static void handleWinnings(Set<PokerPlayer> winners) {
+        List<PokerPlayer> players = getInGamePlayers();
+        int nWinners = winners.size();
+        if(nWinners==0) { System.err.println("ERROR: Round without winners."); System.exit(1); }
+
         //...
     }
 
@@ -260,6 +277,7 @@ public class Game {
         // |  Pair             -> 1  |
         // |  High card        -> 0  |
         // ---------------------------
+
         // Royal Flush
         if(isRoyalFlush(setA)) { scoreA=9; validA=true; }
         if(isRoyalFlush(setB)) { scoreB=9; validB=true; }
@@ -267,34 +285,42 @@ public class Game {
         // Straight Flush
         if(!validA) { if(isStraightFlush(setA)) { scoreA=8; validA=true; } }
         if(!validB) { if(isStraightFlush(setB)) { scoreB=8; validB=true; } }
+        if(scoreA==8&&scoreB==8) { return Card.symbolToInt(StraightHighest(setA))-Card.symbolToInt(StraightHighest(setB)); }
 
         // Four of a Kind
         if(!validA) { if(isFOAK(setA)) { scoreA=7; validA=true; } }
         if(!validB) { if(isFOAK(setB)) { scoreB=7; validB=true; } }
+        if(scoreA==7&&scoreB==7) { return Card.symbolToInt(FOAKSymbol(setA))-Card.symbolToInt(FOAKSymbol(setB)); }
 
         // Full House
         if(!validA) { if(isFullHouse(setA)) { scoreA=6; validA=true; } }
         if(!validB) { if(isFullHouse(setB)) { scoreB=6; validB=true; } }
+        if(scoreA==6&&scoreB==6) { return Card.symbolToInt(TrioSymbol(setA))-Card.symbolToInt(TrioSymbol(setB)); }
 
         // Flush
         if(!validA) { if(isFlush(setA)) { scoreA=5; validA=true; } }
         if(!validB) { if(isFlush(setB)) { scoreB=5; validB=true; } }
+        if(scoreA==5&&scoreB==5) { return Card.symbolToInt(FlushHighest(setA))-Card.symbolToInt(FlushHighest(setB)); }
 
         // Straight
         if(!validA) { if(isStraight(setA)) { scoreA=4; validA=true; } }
         if(!validB) { if(isStraight(setB)) { scoreB=4; validB=true; } }
+        if(scoreA==4&&scoreB==4) { return Card.symbolToInt(StraightHighest(setA))-Card.symbolToInt(StraightHighest(setB)); }
 
         // Three of a kind
         if(!validA) { if(isTOAK(setA)) { scoreA=3; validA=true; } }
         if(!validB) { if(isTOAK(setB)) { scoreB=3; validB=true; } }
+        if(scoreA==3&&scoreB==3) { return Card.symbolToInt(TrioSymbol(setA))-Card.symbolToInt(TrioSymbol(setB)); }
 
         // Two pair
         if(!validA) { if(isTwoPair(setA)) { scoreA=2; validA=true; } }
         if(!validB) { if(isTwoPair(setB)) { scoreB=2; validB=true; } }
+        if(scoreA==2&&scoreB==2) { return Card.symbolToInt(HighestPair(setA))-Card.symbolToInt(HighestPair(setB)); }
 
         // Pair
         if(!validA) { if(isPair(setA)) { scoreA=1; validA=true; } }
         if(!validB) { if(isPair(setB)) { scoreB=1; validB=true; } }
+        if(scoreA==1&&scoreB==1) { return Card.symbolToInt(HighestPair(setA))-Card.symbolToInt(HighestPair(setB)); }
 
         // Determine higher card
         higherA = determineHigherCard(setA);
@@ -344,6 +370,230 @@ public class Game {
         // --- A is Jack ---
         if(symbolA=="J"&&symbolB=="J")  { return 0; }   // B is Jack
         if(symbolA=="J")                { return -1; }  // B isn't Jack
+        System.err.println("ERROR: Unreachable statement reached.");
+        System.exit(2);
+        assert false;
+        return 0;
+    }
+
+    private static boolean setContainsSymbol(Set<Card> set, String symbol) {
+        for(Card c : set) { if(c.getSymbol().equals(symbol)) { return true; } }
+        return false;
+    }
+
+    private static boolean isRoyalFlush(Set<Card> set) {
+        char suit = 'i';
+        int[] suitAmount = {0,0,0,0};
+        char[] suits = {'H','S','D','C'};
+        // --- Flush verification ---
+        // Amount of cards
+        //  of each suit
+        for(Card c : set) {
+            char cSuit = c.getSuit();
+            if(!Card.isValidSuit(cSuit)) { System.err.println("ERROR: Invalid card suit - "+suit); System.exit(1); }
+            for(int i=0; i<4; i++) { if(cSuit==suits[i]) { suitAmount[i]++; break; } }
+        }
+        // Determine dominant suit
+        for(int i=0; i<4; i++) { if(suitAmount[i]>=5) { suit=suits[i]; break; } }
+        if(suit=='i') { return false; } // No suit with 5+ cards
+        // --- Royal Flush verification ---
+        return ((set.contains(new Card("A",suit)))&&
+                (set.contains(new Card("K",suit)))&&
+                (set.contains(new Card("Q",suit)))&&
+                (set.contains(new Card("J",suit)))&&
+                (set.contains(new Card("10",suit))));
+    }
+
+    private static boolean isStraightFlush(Set<Card> set) {
+        char suit = 'i';
+        int[] suitAmount = {0,0,0,0};
+        char[] suits = {'H','S','D','C'};
+        Set<Card> cardsOfDominantSuit = new HashSet<>();
+        // --- Flush verification ---
+        // Amount of cards
+        //  of each suit
+        for(Card c : set) {
+            char cSuit = c.getSuit();
+            if(!Card.isValidSuit(cSuit)) { System.err.println("ERROR: Invalid card suit - "+suit); System.exit(1); }
+            for(int i=0; i<4; i++) { if(cSuit==suits[i]) { suitAmount[i]++; break; } }
+        }
+        // Determine dominant suit
+        for(int i=0; i<4; i++) { if(suitAmount[i]>=5) { suit=suits[i]; break; } }
+        if(suit=='i') { return false; } // No suit with 5+ cards
+        // --- Straight Flush verification ---
+        // Determine higher card
+        //   of dominant suit
+        for(Card c : set) { if(c.getSuit()==suit) { cardsOfDominantSuit.add(c); } }
+        for(int i=0; i<cardsOfDominantSuit.size()-4; i++) {
+            Card higher = determineHigherCard(cardsOfDominantSuit);
+            String higherSymbol = higher.getSymbol();
+            if((cardsOfDominantSuit.contains(new Card(Card.previousSymbol(higherSymbol),suit)))&&
+                (cardsOfDominantSuit.contains(new Card(Card.previousSymbol(Card.previousSymbol(higherSymbol)),suit)))&&
+                (cardsOfDominantSuit.contains(new Card(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(higherSymbol))),suit)))&&
+                (cardsOfDominantSuit.contains(new Card(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(higherSymbol)))),suit)))) {
+                return true;
+            }
+            cardsOfDominantSuit.remove(higher);
+        }
+        return false;
+    }
+
+    private static boolean isFOAK(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==4) { return true; }
+        }
+        return false;
+    }
+
+    private static String FOAKSymbol(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==4) { return Card.intToSymbol(i); }
+        }
+        return "";
+    }
+
+    private static boolean isFullHouse(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        boolean trio = false;
+        boolean pair = true;
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==3) { trio = true; continue; }
+            if(symbolAmount[i]==2) { pair = true; }
+        }
+        return trio&&pair;
+    }
+
+    private static String TrioSymbol(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==3) { return Card.intToSymbol(i); }
+        }
+        return "";
+    }
+
+    private static boolean isFlush(Set<Card> set) {
+        int[] suitAmount = {0,0,0,0};
+        char[] suits = {'H','S','D','C'};
+        // --- Flush verification ---
+        // Amount of cards
+        //  of each suit
+        for(Card c : set) {
+            char cSuit = c.getSuit();
+            if(!Card.isValidSuit(cSuit)) { System.err.println("ERROR: Invalid card suit - "+cSuit); System.exit(1); }
+            for(int i=0; i<4; i++) { if(cSuit==suits[i]) { suitAmount[i]++; break; } }
+        }
+        // Determine dominant suit
+        for(int i=0; i<4; i++) { if(suitAmount[i]>=5) { return true; } }
+        return false; // No suit with 5+ cards
+    }
+
+    private static String FlushHighest(Set<Card> set) {
+        char suit = 'i';
+        int[] suitAmount = {0,0,0,0};
+        char[] suits = {'H','S','D','C'};
+        Set<Card> cardsOfDominantSuit = new HashSet<>();
+        // --- Flush verification ---
+        // Amount of cards
+        //  of each suit
+        for(Card c : set) {
+            char cSuit = c.getSuit();
+            if(!Card.isValidSuit(cSuit)) { System.err.println("ERROR: Invalid card suit - "+suit); System.exit(1); }
+            for(int i=0; i<4; i++) { if(cSuit==suits[i]) { suitAmount[i]++; break; } }
+        }
+        // Determine dominant suit
+        for(int i=0; i<4; i++) { if(suitAmount[i]>=5) { suit=suits[i]; break; } }
+        if(suit=='i') { return ""; } // No suit with 5+ cards
+        for(Card c : set) {
+            char cSuit = c.getSuit();
+            if(cSuit==suit) { cardsOfDominantSuit.add(c); }
+        }
+        return(determineHigherCard(cardsOfDominantSuit).getSymbol());
+    }
+
+    private static boolean isStraight(Set<Card> set) {
+        char[] suits = {'H','S','D','C'};
+        for(int i=0; i<set.size()-4; i++) {
+            Card higher = determineHigherCard(set);
+            String higherSymbol = higher.getSymbol();
+            for(char suit : suits) {
+                if ((set.contains(new Card(Card.previousSymbol(higherSymbol), suit))) &&
+                    (set.contains(new Card(Card.previousSymbol(Card.previousSymbol(higherSymbol)), suit))) &&
+                    (set.contains(new Card(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(higherSymbol))), suit))) &&
+                    (set.contains(new Card(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(higherSymbol)))), suit)))) {
+                    return true;
+                }
+            }
+            set.remove(higher);
+        }
+        return false;
+    }
+
+    private static String StraightHighest(Set<Card> set) {
+        char[] suits = {'H','S','D','C'};
+        for(int i=0; i<set.size()-4; i++) {
+            Card higher = determineHigherCard(set);
+            String higherSymbol = higher.getSymbol();
+            for(char suit : suits) {
+                if ((set.contains(new Card(Card.previousSymbol(higherSymbol), suit))) &&
+                    (set.contains(new Card(Card.previousSymbol(Card.previousSymbol(higherSymbol)), suit))) &&
+                    (set.contains(new Card(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(higherSymbol))), suit))) &&
+                    (set.contains(new Card(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(Card.previousSymbol(higherSymbol)))), suit)))) {
+                    return higherSymbol;
+                }
+            }
+            set.remove(higher);
+        }
+        return "";
+    }
+
+    private static boolean isTOAK(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==3) { return true; }
+        }
+        return false;
+    }
+
+    private static boolean isTwoPair(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        int nPairs = 0;
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==2) { nPairs++; }
+        }
+        return nPairs>=2;
+    }
+
+    private static String HighestPair(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        int nPairs = 0;
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==2) { return Card.intToSymbol(i); }
+        }
+        return "";
+    }
+
+    private static boolean isPair(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==2) { return true; }
+        }
+        return false;
+    }
+
+    private static void delay(int ms) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(ms);
+        } catch (InterruptedException e) {}
     }
 
 }

@@ -44,5 +44,10 @@ public class Player {
         this.funds += amount;
     }
 
+    public String stats() {
+        return ("Name:  "+this.name+"\n"+
+                "Funds: "+this.funds+"\n");
+    }
+
     // ----------------------------------------
 }
