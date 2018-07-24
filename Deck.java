@@ -6,30 +6,43 @@
 
 import java.util.Set;
 import java.util.HashSet;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.Collection;
 
-public class Deck {
+public class Deck extends HashSet<Card> {
 
     // ----------------------------------------
     // Atributes
-    private Set<Card> cards = new HashSet<>();
 
     // ----------------------------------------
     // Constructors
     public Deck() { this.generateDeckCards(); }
 
-    public Deck(Set<Card> cards) { this.cards = cards; }
+    public Deck(Set<Card> cards) { this.addAll(cards); }
 
     // ----------------------------------------
     // Functions
-    public Set<Card> getCards() { return this.cards; }
-    public void setCards(Set<Card> cards) { this.cards = cards; }
+    private void setThis(Collection<Card> c) {
+        this.clear();
+        this.addAll(c);
+    }
+
+    private boolean remove(Card card) {
+        if(!this.contains(card)) { return false; }
+        List<Card> list = new ArrayList<>();
+        for(Card c : this) { if(!c.equals(card)) { list.add(c); } }
+        this.setThis(list);
+        return true;
+    }
 
     private void generateDeckCards() {
         String [] symbols = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
         char [] suits = {'H', 'S', 'D', 'C'};
 
         for(char c : suits) {
-            for(String str : symbols) { cards.add(new Card(str, c)); }
+            for(String str : symbols) { this.add(new Card(str, c)); }
         }
     }
 
@@ -39,29 +52,22 @@ public class Deck {
         Card retValue;
         do {
             retValue = new Card(symbols[(int) (Math.random() * symbols.length)], suits[(int) (Math.random() * suits.length)]);
-            System.out.println(retValue);
-        } while(!this.cards.contains(retValue));
-        cards.remove(retValue);
+        } while(!this.contains(retValue));
+        this.remove(retValue);
         return retValue;
     }
 
     public void shuffle() {
-        cards = new HashSet<>();
+        this.clear();
         this.generateDeckCards();
     }
 
-    public boolean equals(Object object) {
-        if (this == object) return true;
-        if (object == null || getClass() != object.getClass()) return false;
-        if (!super.equals(object)) return false;
-        Deck deck = (Deck) object;
-        return java.util.Objects.equals(cards, deck.cards);
+    public boolean contains(Card object) {
+        for(Card target : this) {
+            if(target.getSymbol().equals(object.getSymbol())&&target.getSuit()==object.getSuit()) return true;
+        }
+        return false;
     }
-
-    public int hashCode() { return Objects.hash(super.hashCode(), cards); }
-
-    @Override
-    public String toString() { return this.cards.toString(); }
 
     // ----------------------------------------
 }

@@ -15,30 +15,31 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Arrays;
 import KarkaniusUtils.READ;
+import java.util.Collection;
 
 public class Game {
 
     static Scanner sc = new Scanner(System.in);
     static Table<PokerPlayer> table;
-    static Deck cards = new Deck();
+    static Deck deck = new Deck();
     static PokerPlayer first = null;
     static Card[] tableCards = new Card[5];
-    static int pot = 0;
-    static Map<String, Integer> betToCover = new HashMap<>();
+    static List<Pot> pot = new ArrayList<>();
+    static Map<Integer, Integer> betToCover = new HashMap<>();
 
     public static void main(String[] args) {
-        System.out.println(cards);
         System.out.println("==> POKER GAME <==");
-        initTable();/*
+        initTable();
         System.out.println("INITIALIZING POKER GAME");
         for(int i=0; i<5; i++) {
             delay(1000);
             System.out.print(".");
-        }*/
+        }
         System.out.println("\n\n");
         while(table.activePlayers().size()>1) {
             handCards();
             // First bets
+            table.printStat();
             handleBets();
             if(roundActivePlayers().size()==1) {
                 endRound();
@@ -53,6 +54,7 @@ public class Game {
             }
             turn();
             // Third bets
+            table.printStat();
             handleBets();
             if(roundActivePlayers().size()==1) {
                 endRound();
@@ -60,6 +62,7 @@ public class Game {
             }
             river();
             // Fourth bets
+            table.printStat();
             handleBets();
         }
     }
@@ -88,14 +91,17 @@ public class Game {
                 for(PokerPlayer player : playersList) { if(player.getName().equals(name)) { invalidName = true; } }
             } while(invalidName);
             PokerPlayer aux = new PokerPlayer(name);
+            betToCover.put(aux.getID(), 0);
             playersList.add(aux);
             if(i==0) { first = aux; }
             System.out.println();
         }
         delay(500);
         for(int i=0; i<numberOfPlayers-numberOfHumans; i++) {
-            System.out.println("Generating PokerBot " + (i + 1));
-            playersList.add(new PokerPlayer("PokerBot " + (i + 1)));
+            System.out.println("Generating PokerBot " + (i+1));
+            PokerBot_v1 bot = new PokerBot_v1("PokerBot " + (i+1));
+            playersList.add(bot);
+            betToCover.put(bot.getID(), 0);
             delay(1000);
         }
         System.out.println();
@@ -107,7 +113,7 @@ public class Game {
         List<PokerPlayer> players = new ArrayList<>(table.activePlayers());
         List<PokerPlayer> inGame = new ArrayList<>();
         for(PokerPlayer player : players) {
-            if(player.getStatus().equals("FOLD")) continue;
+            if (player.getStatus().equals("FOLD")) continue;
             inGame.add(player);
         }
         return inGame;
@@ -126,14 +132,23 @@ public class Game {
 
     private static void handCards() {
         List<PokerPlayer> tempList = new ArrayList<>(table.activePlayers());
-        System.out.println("Handing cards to players.");
-        for(PokerPlayer p : tempList) { p.giveCard(cards.draw()); System.out.println("Card given (1)"); }    // First card
-        for(PokerPlayer p : tempList) { p.giveCard(cards.draw()); System.out.println("Card given (2)"); }    // Second card
+        for(PokerPlayer p : tempList) { p.giveCard(deck.draw()); }    // First card
+        for(PokerPlayer p : tempList) { p.giveCard(deck.draw()); }    // Second card
         table.updatePlayers(tempList);
-        System.out.println("Cards handed to players.");
+    }
+
+    private static void printTableCards() {
+        System.out.print("|  ");
+        for(int i=0; i<5; i++) {
+            if(tableCards[i] == null)   { System.out.print("?-?"); }
+            else                        { System.out.print(tableCards[i].toString()); }
+            System.out.print("  |  ");
+        }
+        System.out.println();
     }
 
     private static void handleBets() {
+        printTableCards();
         List<PokerPlayer> players = getInGamePlayers();
         int index = players.indexOf(first);
         // Circle trough players
@@ -143,25 +158,108 @@ public class Game {
             int toCover = betToCover.get(player.getName());
             PokerAction action = player.play(toCover);
             String status = action.getName();
+            if(player instanceof PokerBot) {
+                System.out.println(player.getName());
+                System.out.print(status);
+                if(status.equals("RAISE")) { System.out.print("    "+action.getAmount()+table.getCurrency()); }
+                System.out.println("\n");
+            }
             if(status.equals("ALLIN")) {
-                pot += action.getAmount();
-                if(toCover<action.getAmount()) {
-                    int extra = action.getAmount()-betToCover.get(player.getName());
-                    betToCover.put(player.getName(), 0);
-                    for(int i=0; i<betToCover.size(); i++) { if(i!=index) { betToCover.put(player.getName(), betToCover.get(player.getName())+extra); } }
+                player.setFunds(0);
+                int remaining = action.getAmount();
+                // --- Pots ---
+                for(Pot p : pot) {
+                    // Closed pots
+                    if(p.isClosed()&&!p.potCompleted(player)) {
+                        // He can cover what he's missing
+                        if(p.missing(player)<=remaining) {
+                            remaining -= p.missing(player);
+                            p.addFunds(player, p.missing(player));
+                        }
+                        // Funds are not enough to cover
+                        else {
+                            p.addFunds(player, remaining);
+                            break;
+                        }
+                    }
+                    // Last pot (open pot)
+                    else { p.addFunds(player, remaining); }
                 }
-                else { betToCover.put(player.getName(), betToCover.get(index)-action.getAmount()); }
+                // --- betToCover ---
+                // He can cover what he's missing
+                if(toCover<=remaining) {
+                    int extra = remaining-betToCover.get(player.getID());
+                    betToCover.put(player.getID(), 0);
+                    for(int i=0; i<betToCover.size(); i++) {
+                        if(i!=index) {
+                            betToCover.put(players.get(i).getID(), betToCover.get(players.get(i).getID())+extra);
+                        }
+                    }
+                }
+                // Funds are not enough to cover
+                else { betToCover.put(player.getID(), betToCover.get(index)-action.getAmount()); }
             }
             else if(status.equals("RAISE")) {
-                pot += action.getAmount();
-                int extra = action.getAmount()-betToCover.get(player.getName());
-                betToCover.put(player.getName(), 0);
-                for(int i=0; i<betToCover.size(); i++) { if(i!=index) { betToCover.put(player.getName(), betToCover.get(player.getName())+extra); } }
+                int remaining = action.getAmount();
+                player.withdrawFunds(remaining);
+                // --- Pots ---
+                for(Pot p : pot) {
+                    // Closed pots
+                    if(p.isClosed()&&!p.potCompleted(player)) {
+                        // He can cover what he's missing
+                        if(p.missing(player)<=remaining) {
+                            remaining -= p.missing(player);
+                            p.addFunds(player, p.missing(player));
+                        }
+                        // Funds are not enough to cover
+                        else {
+                            p.addFunds(player, remaining);
+                            break;
+                        }
+                    }
+                    // Last pot (open pot)
+                    else { p.addFunds(player, remaining); }
+                }
+                // --- betToCover ---
+                // He can cover what he's missing
+                if(toCover<=remaining) {
+                    int extra = remaining-betToCover.get(player.getID());
+                    betToCover.put(player.getID(), 0);
+                    for(int i=0; i<betToCover.size(); i++) {
+                        if(i!=index) {
+                            betToCover.put(players.get(i).getID(), betToCover.get(players.get(i).getID())+extra);
+                        }
+                    }
+                }
+                // Funds are not enough to cover
+                else { betToCover.put(player.getID(), betToCover.get(index)-action.getAmount()); }
                 first = player;
             }
-            else if(status.equals("CALL")) { betToCover.put(player.getName(), 0); }
-            // In case status is FOLD or CHECK
-            // nothing changes
+            else if(status.equals("CALL")) {
+                int remaining = betToCover.get(player.getID());
+                // --- Pots ---
+                for(Pot p : pot) {
+                    // Closed pots
+                    if(p.isClosed()&&!p.potCompleted(player)) {
+                        // He can cover what he's missing
+                        if(p.missing(player)<=remaining) {
+                            remaining -= p.missing(player);
+                            p.addFunds(player, p.missing(player));
+                        }
+                        // Funds are not enough to cover
+                        else {
+                            p.addFunds(player, remaining);
+                            break;
+                        }
+                    }
+                    // Last pot (open pot)
+                    else { p.addFunds(player, remaining); }
+                }
+                // --- betToCover ---
+                player.withdrawFunds(remaining);
+                betToCover.put(player.getID(), 0);
+            }
+            // In case status is FOLD or CHECK nothing changes
             player.setStatus(status);
             // Updating temporary List within function
             players.set(index, player);
@@ -182,28 +280,31 @@ public class Game {
     }
 
     private static void flop() {
-        tableCards[0] = cards.draw();
-        tableCards[1] = cards.draw();
-        tableCards[2] = cards.draw();
+        tableCards[0] = deck.draw();
+        tableCards[1] = deck.draw();
+        tableCards[2] = deck.draw();
     }
-
-    private static void turn() { tableCards[3] = cards.draw(); }
-
-    private static void river() { tableCards[4] = cards.draw(); }
+    private static void turn() { tableCards[3] = deck.draw(); }
+    private static void river() { tableCards[4] = deck.draw(); }
 
     private static void endRound() {
-        handleWinnings(determineWinners());
-        betToCover = new HashMap<>();           // Reset betToCoverList
+        for(Pot p : pot) { handleWinnings(p); } // Distribute funds according to pots
         table.kickPlayers();                    // Kick players with 0 funds
         resetPlayersStatus();                   // Remove all player status (including FOLD and ALLIN)
+        resetBetToCover();                      // Reset betToCoverList
+        pot.clear();                            // Clear List of pots
+    }
+
+    private static void resetBetToCover() {
+        betToCover = new HashMap<>();                   // Reset betToCoverList
         for(PokerPlayer player : table.activePlayers()) {
-            betToCover.put(player.getName(), 0);
+            betToCover.put(player.getID(), 0);          // Re-add players with funds
         }
     }
 
-    private static Set<PokerPlayer> determineWinners() {
+    private static Set<PokerPlayer> determineWinners(Set<PokerPlayer> set) {
         Set<PokerPlayer> winners = new HashSet<>();
-        List<PokerPlayer> players = getInGamePlayers();
+        List<PokerPlayer> players = new ArrayList<>(set);
         Set<Card> bestSet = new HashSet<>();
         for(PokerPlayer player : players) {
             List<Card> available = new ArrayList<>();
@@ -242,11 +343,16 @@ public class Game {
         return retValue;
     }
 
-    private static void handleWinnings(Set<PokerPlayer> winners) {
+    private static void handleWinnings(Pot p) {
+        List<PokerPlayer> winners = determineWinners(Player.getPlayersFromID(table.getPlayers(),p.getPlayers()));
+        System.out.println("handleWinnings 1");
         List<PokerPlayer> players = getInGamePlayers();
+        System.out.println("handleWinnings 2");
         int nWinners = winners.size();
+        System.out.println("handleWinnings 3");
         if(nWinners==0) { System.err.println("ERROR: Round without winners."); System.exit(1); }
-
+        System.out.println("handleWinnings 4");
+        if(nWinners==1) { }
         //...
     }
 
@@ -574,9 +680,21 @@ public class Game {
     private static String HighestPair(Set<Card> set) {
         int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
         for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
-        int nPairs = 0;
         for(int i=symbolAmount.length-1; i>=0; i--) {
             if(symbolAmount[i]==2) { return Card.intToSymbol(i); }
+        }
+        return "";
+    }
+
+    private static String SecondHighestPair(Set<Card> set) {
+        int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+        for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
+        int pairsAnalized = 0;
+        for(int i=symbolAmount.length-1; i>=0; i--) {
+            if(symbolAmount[i]==2) {
+                pairsAnalized++;
+                if(pairsAnalized==2) { return Card.intToSymbol(i); }
+            }
         }
         return "";
     }

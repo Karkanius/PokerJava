@@ -4,6 +4,8 @@
     2018 july
  */
 
+import java.util.Objects;
+
 public class Card {
 
     // ----------------------------------------
@@ -164,12 +166,8 @@ public class Card {
 
     @Override
     public boolean equals(Object object) {
-        if (this == object) return true;
-        if (object == null || getClass() != object.getClass()) return false;
-        if (!super.equals(object)) return false;
         Card card = (Card) object;
-        return suit == card.suit &&
-                java.util.Objects.equals(symbol, card.symbol);
+        return this.suit==card.getSuit() && this.symbol.equals(card.getSymbol());
     }
 
     @Override

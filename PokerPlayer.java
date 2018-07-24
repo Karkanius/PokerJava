@@ -32,7 +32,14 @@ public class PokerPlayer extends Player {
 
     // ----------------------------------------
     // Functions
-    public String getStatus() { return status; }
+    public String getStatus() {
+        try {
+            this.status.equals(null);
+        } catch(NullPointerException e) {
+            return "";
+        }
+        return this.status;
+    }
     public void setStatus(String status) {
         if(status.equals("")) { this.status = null; }
         else {
@@ -46,23 +53,19 @@ public class PokerPlayer extends Player {
     }
 
     public PokerAction play(int betToCover) {
+        System.out.println("Player:        "+super.name);
         System.out.println("Bet to conver: "+betToCover);
         System.out.println("Funds:         "+super.funds);
+        System.out.println(super.cards);
         Menu menu;
         String title = "Actions";
         String[] options;
         // In case he is forced to either FOLD or go ALLIN
-        if(this.funds<betToCover) {
-            options = new String[] {"FOLD","ALLIN"};
-        }
+        if(this.funds<betToCover) { options = new String[] {"FOLD","ALLIN"}; }
         // In case there's no bet to cover, there's no reason to FOLD
-        else if(betToCover==0) {
-            options = new String[] {"CHECK","RAISE","ALLIN"};
-        }
+        else if(betToCover==0) { options = new String[] {"CHECK","RAISE","ALLIN"}; }
         // Regular play
-        else {
-            options = new String[] {"FOLD","CALL","RAISE","ALLIN"};
-        }
+        else { options = new String[] {"FOLD","CALL","RAISE","ALLIN"}; }
         menu = new Menu(title, options);
         menu.printMenu();
         int op = READ.readInteger();;
@@ -76,7 +79,7 @@ public class PokerPlayer extends Player {
             int amount = 0;
             do {
                 amount = READ.readInteger("Amount");
-                while (amount < 0 || amount > super.funds) {
+                while (amount <= 0 || amount > super.funds) {
                     System.out.println("Warning: Invalid amount inserted.");
                     amount = READ.readInteger("Amount");
                 }
