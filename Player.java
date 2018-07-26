@@ -52,11 +52,6 @@ public class Player {
         this.funds += amount;
     }
 
-    public String stats() {
-        return ("Name:  "+this.name+"\n"+
-                "Funds: "+this.funds+"\n");
-    }
-
     private static int generateID() {
         int tempID;
         do {
@@ -67,10 +62,10 @@ public class Player {
 
     public boolean equals(Player player) { return this.id==player.getID(); }
 
-    public static Set<Player> getPlayersFromID(Collection<Player> collection, Collection<Integer> IDs) {
+    public static Set<Player> getPlayersFromID(Collection<Player> players, Collection<Integer> IDs) {
         Set<Player> retvalue = new HashSet<>();
         for (Integer id : IDs) {
-            for (Player player : collection) {
+            for (Player player : players) {
                 if(player.getID()==id) {
                     retvalue.add(player);
                     break;
@@ -78,6 +73,20 @@ public class Player {
             }
         }
         return retvalue;
+    }
+
+    public static Set<Integer> getIDFromPlayers(Collection<Player> players) {
+        Set<Integer> retvalue = new HashSet<>();
+        for (Player player : players) { retvalue.add(player.getID()); }
+        return retvalue;
+    }
+
+    public void removeCards() { this.cards = new HashSet<>(); }
+
+    public String stats() {
+        return ("Name:  "+this.name+"\n"+
+                "ID:    "+this.id+"\n"+
+                "Funds: "+this.funds+"\n");
     }
 
     // ----------------------------------------

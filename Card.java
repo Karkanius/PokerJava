@@ -4,6 +4,8 @@
     2018 july
  */
 
+import java.util.Set;
+import java.util.HashSet;
 import java.util.Objects;
 
 public class Card {
@@ -162,6 +164,15 @@ public class Card {
         System.exit(2);
         assert false;
         return "";
+    }
+
+    public static Set<Card> getCardsFromSuit(Set<Card> set, char suit) {
+        if(!isValidSuit(suit))      { System.err.println("ERROR: Invalid card suit - "+suit); System.exit(1); }
+        Set<Card> retValue = new HashSet<>();
+        for(Card c : set) {
+            if(c.getSuit()==suit) { retValue.add(c); }
+        }
+        return retValue;
     }
 
     @Override

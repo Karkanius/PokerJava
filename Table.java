@@ -22,16 +22,25 @@ public class Table<T extends Player> {
     // Constructors
     public Table(List<T> players) {
         if(validPlayerAmount((List<Player>)players))  { this.players = players; }
-        else                            { System.err.println("ERROR: Invalid player amount."); System.exit(1); }
+        else {
+            System.err.println("ERROR: Invalid player amount.");
+            System.exit(1);
+        }
         setPlayersFunds(initialFunds);
     }
 
     public Table(List<T> players, int initialFunds) {
         boolean valid = true;
-        if(validPlayerAmount((List<Player>)players))  { this.players = players; }
-        else                            { System.err.println("ERROR: Invalid player amount."); valid = false; }
+        if(validPlayerAmount((List<Player>)players)) { this.players = players; }
+        else {
+            System.err.println("ERROR: Invalid player amount.");
+            valid = false;
+        }
         if(initialFunds>0)  { this.initialFunds = initialFunds; }
-        else                { System.err.println("ERROR: Invalid funds."); valid = false; }
+        else {
+            System.err.println("ERROR: Invalid funds.");
+            valid = false;
+        }
         if(!valid) { System.exit(1); }
         setPlayersFunds(initialFunds);
     }
@@ -88,13 +97,15 @@ public class Table<T extends Player> {
 
     public void updatePlayers(List<T> updated) {
         for(int i=0; i<this.players.size(); i++) {
-            String playerName = this.players.get(i).getName();
-            for(T player : updated) {
-                if(player.getName().equals(playerName)) {
-                    this.players.set(i, player);
-                    break;
+            try {
+                int playerID = this.players.get(i).getID();
+                for(T player : updated) {
+                    if(player.getID()==playerID) {
+                        this.players.set(i, player);
+                        break;
+                    }
                 }
-            }
+            } catch (Exception e) { }
         }
     }
 

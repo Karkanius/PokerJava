@@ -51,7 +51,7 @@ public class PokerBot_v1 extends PokerPlayer implements PokerBot {
     public PokerAction play(int betToCover) {
         double[] odds = {1,0,0,0};
         // In case he is forced to either FOLD or go ALLIN
-        if(this.funds<betToCover) {
+        if(this.funds<=betToCover) {
             switch (this.stance) {
                 case DEFENSIVE:
                     odds = new double[]{
@@ -148,8 +148,23 @@ public class PokerBot_v1 extends PokerPlayer implements PokerBot {
             if(betToCover==0) return new PokerAction("CHECK");
             return new PokerAction("CALL");
         }
-        if(play<raiseThreshold) { return new PokerAction("RAISE", (int)(Math.random()*this.funds)); }
+        if(play<raiseThreshold) { return new PokerAction("RAISE", (int)(Math.random()*(this.funds-betToCover))); }
         return new PokerAction("ALLIN",super.funds);
     }
+
+    @Override
+    public String stats() {
+        String tempStatus = "";
+        try {
+            this.status.equals(null);
+            tempStatus = this.status;
+        } catch (NullPointerException e) { }
+        return ("Name:   "+this.name+"\n"+
+                "ID:     "+this.id+"\n"+
+                "Funds:  "+this.funds+"\n"+
+                "Stance: "+this.stance+"\n"+
+                "Status: "+tempStatus+"\n");
+    }
+
     // ----------------------------------------
 }

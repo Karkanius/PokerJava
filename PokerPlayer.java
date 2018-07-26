@@ -48,20 +48,22 @@ public class PokerPlayer extends Player {
         }
     }
 
+    public void resetStatus() { this.status = null; }
+
     public boolean isValidStatus(String str) {
         return ((str.equals("FOLD"))||(str.equals("CHECK"))||(str.equals("CALL"))||(str.equals("RAISE"))||(str.equals("ALLIN")));
     }
 
     public PokerAction play(int betToCover) {
-        System.out.println("Player:        "+super.name);
-        System.out.println("Bet to conver: "+betToCover);
-        System.out.println("Funds:         "+super.funds);
+        System.out.println("Player:       "+super.name);
+        System.out.println("Bet to cover: "+betToCover);
+        System.out.println("Funds:        "+super.funds);
         System.out.println(super.cards);
         Menu menu;
         String title = "Actions";
         String[] options;
         // In case he is forced to either FOLD or go ALLIN
-        if(this.funds<betToCover) { options = new String[] {"FOLD","ALLIN"}; }
+        if(this.funds<=betToCover) { options = new String[] {"FOLD","ALLIN"}; }
         // In case there's no bet to cover, there's no reason to FOLD
         else if(betToCover==0) { options = new String[] {"CHECK","RAISE","ALLIN"}; }
         // Regular play
@@ -74,6 +76,7 @@ public class PokerPlayer extends Player {
             op = READ.readInteger();
         }
         String actionName = options[op-1];
+        if(actionName.equals("ALLIN")) { return new PokerAction("ALLIN", super.funds); }
         if(actionName.equals("RAISE")) {
             String ans = "yes";
             int amount = 0;
@@ -91,7 +94,7 @@ public class PokerPlayer extends Player {
                         ans = READ.readString("Do you wish to ALLIN instead? (y/n)");
                     }
                     if (ans.toLowerCase().equals("y")||ans.toLowerCase().equals("yes")) {
-                        return new PokerAction("ALLIN");
+                        return new PokerAction("ALLIN", super.funds);
                     }
                 }
             } while(ans.toLowerCase().equals("")||ans.toLowerCase().equals("no"));
@@ -107,6 +110,7 @@ public class PokerPlayer extends Player {
             tempStatus = this.status;
         } catch (NullPointerException e) { }
         return ("Name:   "+this.name+"\n"+
+                "ID:     "+this.id+"\n"+
                 "Funds:  "+this.funds+"\n"+
                 "Status: "+tempStatus+"\n");
     }
