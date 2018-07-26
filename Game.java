@@ -18,6 +18,17 @@ import java.util.Collection;
 import java.util.ListIterator;
 import KarkaniusUtils.READ;
 
+/**
+ * <h1>Game</h1>
+ * The Game program implements an application that
+ * simulates a game of Hold'em Poker that displays
+ * all data to the standard output and reads all
+ * player decisions form the standard input.
+ *
+ * @author  Paulo Vasconcelos
+ * @version 1.0
+ * @since   2018-07-26
+ */
 public class Game {
 
     static Scanner sc = new Scanner(System.in);
@@ -43,7 +54,7 @@ public class Game {
             handCards();
             // First bets
             handleBets();
-            if(roundActivePlayers().size()==1) {
+            if(getInGamePlayers().size()==1) {
                 endRound();
                 continue;
             }
@@ -51,7 +62,7 @@ public class Game {
             flop();
             // Second bets
             handleBets();
-            if(roundActivePlayers().size()==1) {
+            if(getInGamePlayers().size()==1) {
                 endRound();
                 continue;
             }
@@ -59,7 +70,7 @@ public class Game {
             turn();
             // Third bets
             handleBets();
-            if(roundActivePlayers().size()==1) {
+            if(getInGamePlayers().size()==1) {
                 endRound();
                 continue;
             }
@@ -71,7 +82,10 @@ public class Game {
         }
     }
 
-    public static void initTable() {
+    /**
+     * Method initializes the static {@code Table<PokerPlayer>} object from class Game.
+     */
+    private static void initTable() {
         List<PokerPlayer> playersList = new LinkedList<>();
         int numberOfPlayers = READ.readInteger("Seats ("+Table.getMinPlayers()+"-"+Table.getMaxPlayers()+"): ");
         while(numberOfPlayers<Table.getMinPlayers()||numberOfPlayers>Table.getMaxPlayers()) {
@@ -113,6 +127,12 @@ public class Game {
         table.printStat();
     }
 
+    /**
+     * Method that analyzes all players still active (whose funds are greater than 0)
+     * and returns those whose status differs from "FOLD".
+     *
+     * @return {@code List<PokerPlayer>}    Players with status different from "FOLD".
+     */
     private static List<PokerPlayer> getInGamePlayers() {
         List<PokerPlayer> players = new ArrayList<>(table.activePlayers());
         List<PokerPlayer> inGame = new ArrayList<>();
@@ -123,17 +143,10 @@ public class Game {
         return inGame;
     }
 
-    private static Set<PokerPlayer> roundActivePlayers() {
-        Set<PokerPlayer> roundActive = new HashSet<>();
-        List<PokerPlayer> list = table.getPlayers();
-        for(PokerPlayer player : list) {
-            if(player!=null) {
-                if(!player.getStatus().equals("FOLD")) { roundActive.add(player); }
-            }
-        }
-        return roundActive;
-    }
-
+    /**
+     * Method that draws cards from deck until every active player on table
+     * has two cards so that he can be able to play that round.
+     */
     private static void handCards() {
         List<PokerPlayer> tempList = new ArrayList<>(table.activePlayers());
         for(PokerPlayer p : tempList) { p.giveCard(deck.draw()); }    // First card
@@ -141,6 +154,9 @@ public class Game {
         table.updatePlayers(tempList);
     }
 
+    /**
+     * Method that displays the cards on the table to the standard output.
+     */
     private static void printTableCards() {
         System.out.print("|  ");
         for(int i=0; i<5; i++) {
@@ -592,7 +608,7 @@ public class Game {
         return higherCard(higherA, higherB);
     }
 
-    public static Card determineHigherCard(Set<Card> set) {
+    private static Card determineHigherCard(Set<Card> set) {
         List<Card> cards = new ArrayList<>(set);
         Card higher = cards.get(0);
         cards.remove(0);
@@ -602,7 +618,7 @@ public class Game {
         return higher;
     }
 
-    public static int higherCard(Card a, Card b) {
+    private static int higherCard(Card a, Card b) {
         String symbolA = a.getSymbol();
         String symbolB = b.getSymbol();
         boolean aIsNumber = false;
@@ -873,6 +889,13 @@ public class Game {
         return nPairs>=2;
     }
 
+    /**
+     * Method that returns the highest pair present in a set of cards passed as argument.
+     *
+     * @param set       Set of cards to be analized.
+     * @return String   Symbol of highest pair present on the set or empty
+     *                      String ("") if the set does not contain any pair.
+     */
     private static String HighestPair(Set<Card> set) {
         int[] symbolAmount = {0,0,0,0,0,0,0,0,0,0,0,0,0};
         for(Card c : set) { symbolAmount[Card.symbolToInt(c.getSymbol())]++; }
